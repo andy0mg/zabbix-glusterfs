@@ -14,19 +14,42 @@
             <name>Gluster Storage</name>
             <description>## Overview
 
- This project was created to monitor Gluster Storage with Zabbix. In this repository there are two files. One python script that calls [gstatus](https://github.com/gluster/gstatus), discovering gluster volumes and print data we want, according to the arguments given. You have to install gstatus [gstatus](https://github.com/gluster/gstatus)
+This project was created to monitor Gluster Storage with Zabbix.
 
-* You should save the script in any directory you want, do it executable from zabbix user using sudo.
-* You have to create a file in /etc/zabbix/zabbix_agent.d/ and add UserParameters...
-* The last one shoud be import zabbix\_template.xml in zabbix
+The solution is based on a Python helper script that calls gstatus in JSON mode, discovers Gluster volumes, and returns cluster and volume metrics to Zabbix through UserParameters.
 
-You can check my [github repository](https://github.com/MrCirca/zabbix-glusterfs)
+Supported monitoring features:
+
+* Gluster cluster health monitoring
+* Cluster node availability monitoring
+* Volume discovery (LLD)
+* Volume health monitoring
+* Brick availability monitoring
+* Volume free space monitoring
+* Self-heal pending entries monitoring
+
+Requirements:
+
+* gstatus must be installed and working
+* the helper script must be executable by the zabbix user through sudo
+* Zabbix agent must have UserParameter entries configured
+* the template XML must be imported into Zabbix
+
+Recommended deployment:
+
+* attach this template to a single Gluster node only, because gstatus returns cluster-wide information
+* using multiple nodes with the same template may create duplicate alerts
+
+Original work:
+https://github.com/MrCirca/zabbix-glusterfs
+
+Reference:
 https://github.com/andy0mg/zabbix-glusterfs
 
+## Original Author
+MrCirca
 
-## Original Author MrCirca
-## Author andy0mg
-
+## Modified for current gstatus JSON format and extended trigger logic
 </description>
             <groups>
                 <group>
@@ -35,25 +58,16 @@ https://github.com/andy0mg/zabbix-glusterfs
             </groups>
             <items>
                 <item>
-                    <uuid>331643360a6d443b8fb7d4dd25ea1e17</uuid>
-                    <name>Gluster Storage % Free Space</name>
-                    <type>CALCULATED</type>
-                    <key>gluster_storage_free_space</key>
-                    <delay>2m</delay>
-                    <units>%</units>
-                    <params>100*((last(//gluster_storage_info[&quot;usable_capacity&quot;])-last(//gluster_storage_info[&quot;used_capacity&quot;]))/last(//gluster_storage_info[&quot;usable_capacity&quot;]))</params>
-                </item>
-                <item>
                     <uuid>4e3b08aea01f45a69d7508cb1ff6808f</uuid>
                     <name>Gluster Storage status</name>
-                    <key>gluster_storage_info[&quot;cluster_status&quot;]</key>
+                    <key>gluster_storage_info["cluster_status"]</key>
                     <delay>2m</delay>
                     <trends>0</trends>
                     <value_type>TEXT</value_type>
                     <triggers>
                         <trigger>
                             <uuid>b947833b77004ddcb925ad050a2b1846</uuid>
-                            <expression>find(/Gluster Storage/gluster_storage_info[&quot;cluster_status&quot;],,&quot;like&quot;,&quot;Healthy&quot;)=0</expression>
+                            <expression>nodata(/Gluster Storage/gluster_storage_info["cluster_status"],5m)=0 and find(/Gluster Storage/gluster_storage_info["cluster_status"],,"regexp","^Healthy$")=0</expression>
                             <name>Gluster volume status is Unhealthy</name>
                             <priority>WARNING</priority>
                         </trigger>
@@ -62,19 +76,19 @@ https://github.com/andy0mg/zabbix-glusterfs
                 <item>
                     <uuid>c3c54b8053184534af6c0aa28e05af16</uuid>
                     <name>Gluster Storage Active Nodes</name>
-                    <key>gluster_storage_info[&quot;nodes_active&quot;]</key>
+                    <key>gluster_storage_info["nodes_active"]</key>
                     <delay>2m</delay>
                 </item>
                 <item>
                     <uuid>45778254ce224773af94ffd22d1542e2</uuid>
                     <name>Gluster Storage Nodes</name>
-                    <key>gluster_storage_info[&quot;node_count&quot;]</key>
+                    <key>gluster_storage_info["node_count"]</key>
                     <delay>2m</delay>
                 </item>
                 <item>
                     <uuid>eeee44efcc9345babd7460f4d5b9c125</uuid>
                     <name>Gluster Storage Volume Number</name>
-                    <key>gluster_storage_info[&quot;volume_count&quot;]</key>
+                    <key>gluster_storage_info["volume_count"]</key>
                     <delay>2m</delay>
                 </item>
                 <item>
@@ -85,24 +99,17 @@ https://github.com/andy0mg/zabbix-glusterfs
                     <triggers>
                         <trigger>
                             <uuid>57e6f7c83c9c4cd8ada4c5709e36ed87</uuid>
-                            <expression>min(/Gluster Storage/gluster_storage_info[heal_entries],1h)&gt;50
-and
-nodata(/Gluster Storage/gluster_storage_info[heal_entries],5m)=0</expression>
+                            <expression>nodata(/Gluster Storage/gluster_storage_info[heal_entries],5m)=0 and min(/Gluster Storage/gluster_storage_info[heal_entries],1h)&gt;50</expression>
                             <name>GlusterFS: Self-heal pending entries ({ITEM.LASTVALUE})</name>
                             <priority>HIGH</priority>
                         </trigger>
                         <trigger>
                             <uuid>3d676428925d4de885a0b338ea3a5d5a</uuid>
-                            <expression>min(/Gluster Storage/gluster_storage_info[heal_entries],20m)&gt;5</expression>
+                            <expression>nodata(/Gluster Storage/gluster_storage_info[heal_entries],5m)=0 and min(/Gluster Storage/gluster_storage_info[heal_entries],20m)&gt;5</expression>
                             <name>GlusterFS: Self-heal pending entries ({ITEM.LASTVALUE})</name>
                             <priority>WARNING</priority>
                         </trigger>
                     </triggers>
-                </item>
-                <item>
-                    <uuid>b542a7ff79b14d7f9bc8d5f33d5469d0</uuid>
-                    <name>GlusterFS: Brick offline</name>
-                    <key>gluster_storage_info[online]</key>
                 </item>
             </items>
             <discovery_rules>
@@ -119,7 +126,7 @@ nodata(/Gluster Storage/gluster_storage_info[heal_entries],5m)=0</expression>
                             <key>gluster_volume_free_space[{#VOLUME_NAME}]</key>
                             <delay>30s</delay>
                             <units>%</units>
-                            <params>100*((last(//gluster_volume_info[&quot;size_total&quot;,{#VOLUME_NAME}])-last(//gluster_volume_info[&quot;size_used&quot;,{#VOLUME_NAME}]))/last(//gluster_volume_info[&quot;size_total&quot;,{#VOLUME_NAME}]))</params>
+                            <params>100*((last(//gluster_volume_info["size_total",{#VOLUME_NAME}])-last(//gluster_volume_info["size_used",{#VOLUME_NAME}]))/last(//gluster_volume_info["size_total",{#VOLUME_NAME}]))</params>
                             <trigger_prototypes>
                                 <trigger_prototype>
                                     <uuid>fe47c683552d489eba3f26f8ee836842</uuid>
@@ -132,14 +139,14 @@ nodata(/Gluster Storage/gluster_storage_info[heal_entries],5m)=0</expression>
                         <item_prototype>
                             <uuid>3bf1fc8ff3ad4e10b84097caf5a56518</uuid>
                             <name>Gluster Volume state on {#VOLUME_NAME}</name>
-                            <key>gluster_volume_info[&quot;health&quot;,{#VOLUME_NAME}]</key>
+                            <key>gluster_volume_info["health",{#VOLUME_NAME}]</key>
                             <delay>30s</delay>
                             <trends>0</trends>
                             <value_type>TEXT</value_type>
                             <trigger_prototypes>
                                 <trigger_prototype>
                                     <uuid>b719e8cf2b304242a4ed054886a04b70</uuid>
-                                    <expression>find(/Gluster Storage/gluster_volume_info[&quot;health&quot;,{#VOLUME_NAME}],,&quot;regexp&quot;,&quot;^up$&quot;)=0</expression>
+                                    <expression>nodata(/Gluster Storage/gluster_volume_info["health",{#VOLUME_NAME}],5m)=0 and find(/Gluster Storage/gluster_volume_info["health",{#VOLUME_NAME}],,"regexp","^up$")=0</expression>
                                     <name>Gluster Volume state in {#VOLUME_NAME} is down</name>
                                     <priority>WARNING</priority>
                                 </trigger_prototype>
@@ -148,31 +155,31 @@ nodata(/Gluster Storage/gluster_storage_info[heal_entries],5m)=0</expression>
                         <item_prototype>
                             <uuid>2242d2c02a3644c994dbc9d300abe5f8</uuid>
                             <name>Gluster Volume Total Size on {#VOLUME_NAME}</name>
-                            <key>gluster_volume_info[&quot;size_total&quot;,{#VOLUME_NAME}]</key>
+                            <key>gluster_volume_info["size_total",{#VOLUME_NAME}]</key>
                             <delay>30s</delay>
                             <units>b</units>
                         </item_prototype>
                         <item_prototype>
                             <uuid>bc2ca197dc7642e99334b67cd58142ee</uuid>
                             <name>Gluster Volume Used Size on {#VOLUME_NAME}</name>
-                            <key>gluster_volume_info[&quot;size_used&quot;,{#VOLUME_NAME}]</key>
+                            <key>gluster_volume_info["size_used",{#VOLUME_NAME}]</key>
                             <delay>30s</delay>
                             <units>b</units>
                         </item_prototype>
                         <item_prototype>
                             <uuid>f917a8279c574070b98b95bab6751622</uuid>
                             <name>GlusterFS: Total bricks [{#VOLUME_NAME}]</name>
-                            <key>gluster_volume_info[num_bricks,&quot;{#VOLUME_NAME}&quot;]</key>
+                            <key>gluster_volume_info[num_bricks,"{#VOLUME_NAME}"]</key>
                         </item_prototype>
                         <item_prototype>
                             <uuid>3e563a2ad0744dd3be6bb1fb330ff95f</uuid>
                             <name>GlusterFS: Online bricks [{#VOLUME_NAME}]</name>
-                            <key>gluster_volume_info[online,&quot;{#VOLUME_NAME}&quot;]</key>
+                            <key>gluster_volume_info[online,"{#VOLUME_NAME}"]</key>
                         </item_prototype>
                         <item_prototype>
                             <uuid>3916a58d3d0a44918ef88b9242b3ebcf</uuid>
                             <name>GlusterFS: Volume status [{#VOLUME_NAME}]</name>
-                            <key>gluster_volume_info[status,&quot;{#VOLUME_NAME}&quot;]</key>
+                            <key>gluster_volume_info[status,"{#VOLUME_NAME}"]</key>
                             <trends>0</trends>
                             <value_type>TEXT</value_type>
                         </item_prototype>
@@ -180,10 +187,9 @@ nodata(/Gluster Storage/gluster_storage_info[heal_entries],5m)=0</expression>
                     <trigger_prototypes>
                         <trigger_prototype>
                             <uuid>2c60b996502647948c245ee7a556c225</uuid>
-                            <expression>last(/Gluster Storage/gluster_volume_info[online,&quot;{#VOLUME_NAME}&quot;])
-&lt;
-last(/Gluster Storage/gluster_volume_info[num_bricks,&quot;{#VOLUME_NAME}&quot;])</expression>
+                            <expression>nodata(/Gluster Storage/gluster_volume_info[online,"{#VOLUME_NAME}"],5m)=0 and nodata(/Gluster Storage/gluster_volume_info[num_bricks,"{#VOLUME_NAME}"],5m)=0 and last(/Gluster Storage/gluster_volume_info[online,"{#VOLUME_NAME}"])&lt;last(/Gluster Storage/gluster_volume_info[num_bricks,"{#VOLUME_NAME}"])</expression>
                             <name>GlusterFS: Volume {#VOLUME_NAME} has offline bricks</name>
+                            <priority>HIGH</priority>
                         </trigger_prototype>
                     </trigger_prototypes>
                 </discovery_rule>
@@ -193,7 +199,7 @@ last(/Gluster Storage/gluster_volume_info[num_bricks,&quot;{#VOLUME_NAME}&quot;]
     <triggers>
         <trigger>
             <uuid>8e4d5a0b0cd2465891477af77f34a002</uuid>
-            <expression>last(/Gluster Storage/gluster_storage_info[&quot;nodes_active&quot;]) &lt; last(/Gluster Storage/gluster_storage_info[&quot;node_count&quot;])</expression>
+            <expression>nodata(/Gluster Storage/gluster_storage_info["nodes_active"],5m)=0 and nodata(/Gluster Storage/gluster_storage_info["node_count"],5m)=0 and last(/Gluster Storage/gluster_storage_info["nodes_active"]) &lt; last(/Gluster Storage/gluster_storage_info["node_count"])</expression>
             <name>Gluster storage nodes is not online</name>
             <priority>INFO</priority>
         </trigger>
