@@ -17,7 +17,7 @@ zabbix ALL=(ALL) NOPASSWD: gstatus_discovery.py
 ```
 You have to add glusterfs.conf file in /etc/zabbix/zabbix_agent.conf.d/
 
-* You should save the script in /usr/local/bin directory and do it executable from zabbix user using sudo.
+* You should save the script gstatus_discovery.py in /etc/zabbix/scripts directory and do it executable from zabbix user using sudo.
 * The last one shoud be import zabbix_template.xml in zabbix
 
 ### Examples executing script
