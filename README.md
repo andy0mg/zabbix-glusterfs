@@ -278,12 +278,6 @@ Attach the template to the host where the script runs.
 
 Attach the template to **one Gluster node only**.
 
-Example:
-
-```
-CP-ARB-1
-```
-
 Because `gstatus` returns cluster-wide information.
 
 Monitoring from multiple nodes will create duplicate alerts.
@@ -293,7 +287,7 @@ Monitoring from multiple nodes will create duplicate alerts.
 # Requirements
 
 - Zabbix 6.4+
-- GlusterFS
+- GlusterFS 9.2+
 - Python 3
 - gstatus utility
 
