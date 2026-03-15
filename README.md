@@ -261,7 +261,7 @@ systemctl restart zabbix-agent
 Import the template XML:
 
 ```
-zabbix_template.xml
+gluster_storage_template.xml
 ```
 
 In Zabbix:
